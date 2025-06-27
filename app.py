@@ -17,7 +17,7 @@ DATA_FILES = {
 
 # --- FUNGSI-FUNGSI BANTU ---
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def load_single_data(program_name):
     """Fungsi untuk memuat data SATU program."""
     df = pd.read_csv(DATA_FILES[program_name], sep=';', encoding='latin1')
@@ -25,7 +25,7 @@ def load_single_data(program_name):
     df['Durasi Total'] = pd.to_numeric(df['Durasi Total'], errors='coerce')
     return df
 
-@st.cache(allow_output_mutation=True)
+@st.cache_data
 def load_all_data():
     """Fungsi untuk memuat dan menggabungkan SEMUA data program."""
     list_of_dfs = []
