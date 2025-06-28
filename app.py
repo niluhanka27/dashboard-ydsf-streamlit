@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# --- Palet Warna Kustom ---
+# Palet warna brand YDSF (warna terang dihilangkan agar kontras)
+YDSF_PALETTE = ["#0c58a4", "#4ab23a", "#84bd8f", "#84a4cc"]
+# Palet warna dengan kontras tinggi untuk grafik yang membandingkan banyak kategori
+HIGH_CONTRAST_PALETTE = px.colors.qualitative.Plotly
+
 # Konfigurasi halaman agar menggunakan layout lebar dan sidebar tertutup di awal
 st.set_page_config(layout="wide", page_title="Dashboard YDSF Surabaya", initial_sidebar_state="collapsed")
 
@@ -101,6 +107,8 @@ with st.sidebar:
 # ==================================================================
 #                     HALAMAN UTAMA (HOME)
 # ==================================================================
+# Ganti seluruh blok 'if selected_page == "Home":' Anda dengan ini:
+
 if selected_page == "Home":
     st.title("Dashboard Penerima Bantuan YDSF Surabaya")
     st.markdown("---")
@@ -116,7 +124,9 @@ if selected_page == "Home":
             st.info("**Total Bantuan yang Disalurkan per Program**")
             total_per_program = df_all.groupby('program_nama')['Jumlah Bantuan'].sum().sort_values(ascending=False)
             avg_bantuan_program = total_per_program.mean()
-            fig1 = px.bar(total_per_program, y='Jumlah Bantuan', text_auto='.2s', labels={'program_nama':'Program', 'y':'Total Bantuan (Rp)'})
+            # REVISI WARNA: Menggunakan warna spesifik dari palet
+            fig1 = px.bar(total_per_program, y='Jumlah Bantuan', text_auto='.2s', labels={'program_nama':'Program', 'y':'Total Bantuan (Rp)'},
+                          color_discrete_sequence=[YDSF_PALETTE[0]])
             fig1.add_hline(y=avg_bantuan_program, line_dash="dash", line_color="red", annotation_text="Rata-rata")
             fig1.update_layout(dragmode=False)
             st.plotly_chart(fig1, use_container_width=True)
@@ -132,7 +142,9 @@ if selected_page == "Home":
             st.info("**Efisiensi Proses Antar Program**")
             durasi_per_program = df_all.groupby('program_nama')['Durasi Total'].mean().sort_values(ascending=False)
             avg_durasi_all = df_all['Durasi Total'].mean()
-            fig3 = px.bar(durasi_per_program, y='Durasi Total', text_auto='.0f', labels={'program_nama':'Program', 'y':'Rata-rata Durasi (Hari)'})
+            # REVISI WARNA: Menggunakan warna spesifik dari palet
+            fig3 = px.bar(durasi_per_program, y='Durasi Total', text_auto='.0f', labels={'program_nama':'Program', 'y':'Rata-rata Durasi (Hari)'},
+                          color_discrete_sequence=[YDSF_PALETTE[1]])
             fig3.add_hline(y=avg_durasi_all, line_dash="dash", line_color="red", annotation_text="Rata-rata")
             fig3.update_layout(dragmode=False)
             st.plotly_chart(fig3, use_container_width=True)
@@ -146,11 +158,14 @@ if selected_page == "Home":
 
         st.info("**Tren Pertumbuhan Penyaluran Bantuan per Program**")
         tren_tahunan_program = df_all.groupby(['Tahun', 'program_nama'])['Jumlah Bantuan'].sum().reset_index()
-        fig2 = px.line(tren_tahunan_program, x='Tahun', y='Jumlah Bantuan', color='program_nama', markers=True, labels={'Tahun':'Tahun', 'Jumlah Bantuan':'Total Bantuan (Rp)', 'program_nama':'Program'})
+        # REVISI WARNA: Menggunakan palet kontras tinggi
+        fig2 = px.line(tren_tahunan_program, x='Tahun', y='Jumlah Bantuan', color='program_nama', markers=True, 
+                       labels={'Tahun':'Tahun', 'Jumlah Bantuan':'Total Bantuan (Rp)', 'program_nama':'Program'},
+                       color_discrete_sequence=HIGH_CONTRAST_PALETTE)
         fig2.update_layout(dragmode=False)
         st.plotly_chart(fig2, use_container_width=True)
         st.markdown("<div style='text-align: justify; font-size: 14px;'><b>Analisis:</b> Membandingkan pertumbuhan dana setiap program dari tahun ke tahun.<br><b>Insight:</b> Garis yang menanjak tajam menandakan pertumbuhan pesat, sementara garis yang landai menunjukkan program yang stabil atau sudah matang.</div>", unsafe_allow_html=True)
-
+        
 # ==================================================================
 #            HALAMAN LAIN (Tergantung pada Pilihan Program)
 # ==================================================================
