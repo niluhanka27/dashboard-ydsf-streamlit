@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Konfigurasi halaman agar menggunakan layout lebar dan sidebar tertutup di awal
+# Konfigurasi halaman agar menggunakan layout lebar
 st.set_page_config(layout="wide", page_title="Dashboard YDSF Surabaya", initial_sidebar_state="collapsed")
 
 # --- DATA LOADING ---
@@ -16,6 +16,7 @@ DATA_FILES = {
 }
 
 # --- FUNGSI-FUNGSI BANTU ---
+
 try:
     cache_decorator = st.cache_data
 except AttributeError:
@@ -79,7 +80,7 @@ CLUSTER_INFO = {
     "Yatim": {"nama_cluster": {0: "Cluster 0: Beasiswa Panti Asuhan dengan Penyaluran Kilat", 1: "Cluster 1: Beasiswa Non-Panti dengan Proses Lambat", 2: "Cluster 2: Beasiswa SD Non-Panti dengan Penyaluran Cepat"},"penjelasan": "Penamaan cluster didasarkan pada variabel paling signifikan, yaitu **Durasi Total** dan **Kat. Subprogram**."}
 }
 
-# --- SIDEBAR ---
+# --- SIDEBAR (NAVIGASI UTAMA) ---
 with st.sidebar:
     col1, col2 = st.columns(2)
     with col1:
@@ -88,9 +89,11 @@ with st.sidebar:
         st.image("assets/logo_stakeholder.png", width=60) 
 
     st.title("Navigasi & Filter")
+    # REVISI: Mengganti nama halaman
     selected_page = st.radio("Pilih Halaman:", options=["Home", "Data Penerima Bantuan", "Analisis Eksploratif (EDA)", "Profiling Cluster"])
 
     selected_program = None
+    # REVISI: Mengganti nama halaman
     if selected_page != "Home":
         selected_program = st.selectbox("Pilih Program untuk Detail:", options=list(DATA_FILES.keys()))
         
@@ -101,6 +104,7 @@ with st.sidebar:
 # ==================================================================
 #                     HALAMAN UTAMA (HOME)
 # ==================================================================
+# REVISI: Mengganti nama halaman
 if selected_page == "Home":
     st.title("Dashboard Penerima Bantuan YDSF Surabaya")
     st.markdown("---")
@@ -110,46 +114,34 @@ if selected_page == "Home":
     df_all = load_all_data()
 
     if not df_all.empty:
-        st.subheader("Ringkasan Kinerja Lintas Program")
         col1, col2 = st.columns(2)
+        
         with col1:
             st.info("**Total Bantuan yang Disalurkan per Program**")
             total_per_program = df_all.groupby('program_nama')['Jumlah Bantuan'].sum().sort_values(ascending=False)
             avg_bantuan_program = total_per_program.mean()
+            
             fig1 = px.bar(total_per_program, y='Jumlah Bantuan', text_auto='.2s', labels={'program_nama':'Program', 'y':'Total Bantuan (Rp)'})
             fig1.add_hline(y=avg_bantuan_program, line_dash="dash", line_color="red", annotation_text="Rata-rata")
             fig1.update_layout(dragmode=False)
             st.plotly_chart(fig1, use_container_width=True)
-            program_terbesar = total_per_program.index[0]
-            nilai_terbesar = total_per_program.iloc[0]
-            st.markdown(f"""
-            <div style='text-align: justify; font-size: 14px;'>
-            <b>Analisis:</b> Grafik ini menunjukkan fokus alokasi dana YDSF antar program.<br>
-            <b>Insight:</b> Program **{program_terbesar}** menyalurkan dana terbesar (Rp {nilai_terbesar:,.0f}), menandakan pilar utama lembaga.
-            </div>""", unsafe_allow_html=True)
             
         with col2:
             st.info("**Efisiensi Proses Antar Program**")
             durasi_per_program = df_all.groupby('program_nama')['Durasi Total'].mean().sort_values(ascending=False)
             avg_durasi_all = df_all['Durasi Total'].mean()
+
             fig3 = px.bar(durasi_per_program, y='Durasi Total', text_auto='.0f', labels={'program_nama':'Program', 'y':'Rata-rata Durasi (Hari)'})
             fig3.add_hline(y=avg_durasi_all, line_dash="dash", line_color="red", annotation_text="Rata-rata")
             fig3.update_layout(dragmode=False)
             st.plotly_chart(fig3, use_container_width=True)
-            program_terlama = durasi_per_program.index[0]
-            program_tercepat = durasi_per_program.index[-1]
-            st.markdown(f"""
-            <div style='text-align: justify; font-size: 14px;'>
-            <b>Analisis:</b> Membandingkan rata-rata kecepatan penyaluran bantuan per program.<br>
-            <b>Insight:</b> Program **{program_tercepat}** memiliki proses tercepat. Durasi terlama pada program **{program_terlama}** wajar terjadi karena umumnya memerlukan proses verifikasi yang lebih kompleks.
-            </div>""", unsafe_allow_html=True)
 
         st.info("**Tren Pertumbuhan Penyaluran Bantuan per Program**")
         tren_tahunan_program = df_all.groupby(['Tahun', 'program_nama'])['Jumlah Bantuan'].sum().reset_index()
         fig2 = px.line(tren_tahunan_program, x='Tahun', y='Jumlah Bantuan', color='program_nama', markers=True, labels={'Tahun':'Tahun', 'Jumlah Bantuan':'Total Bantuan (Rp)', 'program_nama':'Program'})
         fig2.update_layout(dragmode=False)
         st.plotly_chart(fig2, use_container_width=True)
-        st.markdown("<div style='text-align: justify; font-size: 14px;'><b>Analisis:</b> Membandingkan pertumbuhan dana setiap program dari tahun ke tahun.<br><b>Insight:</b> Garis yang menanjak tajam menandakan pertumbuhan pesat, sementara garis yang landai menunjukkan program yang stabil atau sudah matang.</div>", unsafe_allow_html=True)
+
 
 # ==================================================================
 #            HALAMAN LAIN (Tergantung pada Pilihan Program)
@@ -159,7 +151,6 @@ elif selected_program:
     
     df_single = load_single_data(selected_program)
     
-    # --- HALAMAN DATA PENERIMA BANTUAN ---
     if selected_page == "Data Penerima Bantuan":
         st.info("Gunakan filter di bawah untuk menyeleksi data.")
         all_years = sorted(df_single['Tahun'].dropna().unique().astype(int))
@@ -174,10 +165,11 @@ elif selected_program:
                 df_filtered_data['Nama Penerima'].str.contains(search_query, case=False, na=False) |
                 df_filtered_data['KTP/SIM'].astype(str).str.contains(search_query, case=False, na=False)
             ]
+        
         st.dataframe(df_filtered_data.drop(columns=['Cluster'], errors='ignore'))
         st.markdown("<p style='font-size:12px; color:grey;'><i><b>Durasi Total:</b> Waktu yang dibutuhkan (dalam hari) dari pengajuan awal hingga bantuan diterima oleh penerima.</i></p>", unsafe_allow_html=True)
 
-    # --- HALAMAN ANALISIS EKSPLORATIF (EDA) ---
+    # --- BAGIAN UNTUK HALAMAN ANALISIS EKSPLORATIF (EDA) ---
     elif selected_page == "Analisis Eksploratif (EDA)":
         st.subheader("Filter Data")
         list_tahun = ["Semua Tahun"] + sorted(df_single['Tahun'].dropna().unique().astype(int), reverse=True)
@@ -196,53 +188,44 @@ elif selected_program:
         st.markdown("---")
         st.subheader("Visualisasi Detail Analisis")
         
-        # --- REVISI TATA LETAK EDA DIMULAI DARI SINI ---
         vcol1, vcol2 = st.columns(2)
         with vcol1:
-            st.info("**Top 10 Kategori Subprogram**")
-            top_sub = df_filtered_eda['Kat. Subprogram'].value_counts().nlargest(10)
-            fig_top_sub = px.bar(top_sub, y=top_sub.index, x=top_sub.values, orientation='h', text_auto=True, labels={'y':'', 'x':'Jumlah Transaksi'})
-            fig_top_sub.update_layout(yaxis={'categoryorder':'total ascending'}, dragmode=False)
-            st.plotly_chart(fig_top_sub, use_container_width=True)
-            top_program_nama = top_sub.index[0] if not top_sub.empty else "N/A"
-            st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Subprogram **'{top_program_nama}'** adalah aktivitas inti dari program ini pada periode **{tahun_terpilih}**.</div>", unsafe_allow_html=True)
-            
+            st.info("**Rata-rata Durasi Total per Tahun**")
+            avg_durasi_tahun = df_filtered_eda.groupby('Tahun')['Durasi Total'].mean().reset_index()
+            fig_v1 = px.line(avg_durasi_tahun, x='Tahun', y='Durasi Total', markers=True, labels={'Durasi Total': 'Rata-rata Durasi (Hari)'})
+            fig_v1.update_layout(dragmode=False)
+            st.plotly_chart(fig_v1, use_container_width=True)
+
             st.info("**Jumlah Bantuan Rata-rata per Subprogram**")
             avg_bantuan_sub = df_filtered_eda.groupby('Kat. Subprogram')['Jumlah Bantuan'].mean().nlargest(10).sort_values()
             fig_v2 = px.bar(avg_bantuan_sub, x='Jumlah Bantuan', orientation='h', text_auto='.2s', labels={'index':'Subprogram', 'Jumlah Bantuan':'Rata-rata Bantuan (Rp)'})
             fig_v2.update_layout(dragmode=False)
             st.plotly_chart(fig_v2, use_container_width=True)
-            sub_terbesar = avg_bantuan_sub.index[-1] if not avg_bantuan_sub.empty else "N/A"
-            st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Subprogram **'{sub_terbesar}'** secara konsisten memberikan bantuan dengan nominal paling besar, menandakan ini adalah bantuan 'high-value'.</div>", unsafe_allow_html=True)
+
+            st.info("**Durasi Total Berdasarkan Sumber Anggaran**")
+            fig_v3 = px.box(df_filtered_eda, x='Sumber Anggaran', y='Durasi Total', points="all", labels={'Durasi Total':'Durasi Total (Hari)'})
+            fig_v3.update_layout(dragmode=False)
+            st.plotly_chart(fig_v3, use_container_width=True)
             
         with vcol2:
-            st.info("**Top 10 Kota Penerima Bantuan**")
-            top_kota = df_filtered_eda['Kota'].value_counts().nlargest(10)
-            fig_top_kota = px.bar(top_kota, y=top_kota.index, x=top_kota.values, orientation='h', text_auto=True, labels={'y':'', 'x':'Jumlah Transaksi'})
-            fig_top_kota.update_layout(yaxis={'categoryorder':'total ascending'}, dragmode=False)
-            st.plotly_chart(fig_top_kota, use_container_width=True)
-            top_kota_nama = top_kota.index[0] if not top_kota.empty else "N/A"
-            st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Wilayah **{top_kota_nama}** menjadi fokus utama penyaluran untuk program ini pada periode **{tahun_terpilih}**.</div>", unsafe_allow_html=True)
-            
-            st.info("**Total Bantuan Berdasarkan Sumber Anggaran**")
+            st.info("**Jumlah Bantuan Berdasarkan Sumber Anggaran**")
             sum_bantuan_sumber = df_filtered_eda.groupby('Sumber Anggaran')['Jumlah Bantuan'].sum().sort_values()
             fig_v4 = px.bar(sum_bantuan_sumber, x=sum_bantuan_sumber.index, y='Jumlah Bantuan', text_auto='.2s', labels={'x':'Sumber Anggaran', 'Jumlah Bantuan':'Total Bantuan (Rp)'})
             fig_v4.update_layout(dragmode=False)
             st.plotly_chart(fig_v4, use_container_width=True)
-            sumber_terbesar = sum_bantuan_sumber.index[-1] if not sum_bantuan_sumber.empty else "N/A"
-            st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Dana dari **{sumber_terbesar}** menjadi penopang finansial utama untuk program ini pada periode **{tahun_terpilih}**.</div>", unsafe_allow_html=True)
+            
+            st.info("**Distribusi Durasi Total**")
+            fig_v5 = px.histogram(df_filtered_eda, x='Durasi Total', nbins=30, marginal="box", labels={'Durasi Total':'Durasi Total (Hari)'})
+            fig_v5.update_layout(dragmode=False)
+            st.plotly_chart(fig_v5, use_container_width=True)
 
-        st.markdown("---")
-        
-        st.info("**Rata-rata Durasi Total per Tahun**")
-        avg_durasi_tahun = df_filtered_eda.groupby('Tahun')['Durasi Total'].mean().reset_index()
-        fig_v1 = px.line(avg_durasi_tahun, x='Tahun', y='Durasi Total', markers=True, labels={'Durasi Total': 'Rata-rata Durasi (Hari)'})
-        fig_v1.update_layout(dragmode=False)
-        st.plotly_chart(fig_v1, use_container_width=True)
-        st.markdown("<div style='font-size:14px;'><b>Insight:</b> Jika garis tren menurun, maka proses penyaluran program ini menjadi semakin efisien setiap tahunnya. Sebaliknya, jika menanjak, perlu ada evaluasi proses.</div>", unsafe_allow_html=True)
+            st.info("**Distribusi Jumlah Bantuan**")
+            fig_v6 = px.histogram(df_filtered_eda, x='Jumlah Bantuan', nbins=30, marginal="box", labels={'Jumlah Bantuan':'Jumlah Bantuan (Rp)'})
+            fig_v6.update_layout(dragmode=False)
+            st.plotly_chart(fig_v6, use_container_width=True)
         
         st.markdown("---")
-        st.subheader("Analisis Interaktif: Top Subprogram per Kota")
+        st.subheader("Analisis Subprogram per Kota")
         list_kota = ["Semua Kota"] + sorted(df_filtered_eda['Kota'].dropna().unique())
         kota_terpilih = st.selectbox("Pilih Kota untuk melihat detail Subprogram:", options=list_kota)
         df_kota_filtered = df_filtered_eda if kota_terpilih == "Semua Kota" else df_filtered_eda[df_filtered_eda['Kota'] == kota_terpilih]
@@ -259,89 +242,74 @@ elif selected_program:
         if not info or not info.get("nama_cluster"):
             st.warning(f"Informasi cluster untuk '{selected_program}' belum diatur.")
         else:
-            nama_cluster_options = ["Pilih cluster..."] + list(info["nama_cluster"].values())
-            selected_cluster_nama = st.selectbox("Pilih Cluster untuk Melihat Profil Detail:", options=nama_cluster_options)
+            nama_cluster_options = list(info["nama_cluster"].values())
+            if not nama_cluster_options:
+                st.warning("Tidak ada nama cluster yang terdefinisi untuk program ini.")
+            else:
+                selected_cluster_nama = st.selectbox("Pilih Cluster untuk Melihat Profil Detail:", options=nama_cluster_options)
 
-            if selected_cluster_nama != "Pilih cluster...":
-                st.subheader(selected_cluster_nama)
-                st.info(info.get("penjelasan", "Tidak ada penjelasan mengenai dasar penamaan cluster."))
-                st.markdown("---")
-                
-                list_tahun_cluster = ["Semua Tahun"] + sorted(df_single['Tahun'].dropna().unique().astype(int), reverse=True)
-                tahun_terpilih_cluster = st.selectbox("Pilih Tahun Analisis:", options=list_tahun_cluster, key="filter_tahun_cluster")
-                
-                selected_cluster_key = [k for k, v in info["nama_cluster"].items() if v == selected_cluster_nama][0]
-                df_cluster_all_years = df_single[df_single['Cluster'] == selected_cluster_key].copy()
-                
-                df_cluster = df_cluster_all_years if tahun_terpilih_cluster == "Semua Tahun" else df_cluster_all_years[df_cluster_all_years['Tahun'] == tahun_terpilih_cluster]
-
-                if df_cluster.empty:
-                    st.warning(f"Tidak ada data untuk cluster ini pada tahun {tahun_terpilih_cluster}.")
-                else:
-                    st.markdown("#### Ringkasan Statistik Cluster")
-                    summary_df = generate_cluster_summary_df(df_cluster)
-                    st.table(summary_df)
-                    
+                if selected_cluster_nama:
+                    st.subheader(selected_cluster_nama)
+                    st.info(info.get("penjelasan", "Tidak ada penjelasan mengenai dasar penamaan cluster."))
                     st.markdown("---")
-                    st.subheader("Visualisasi Karakteristik Cluster")
                     
-                    vcol1, vcol2 = st.columns(2)
-                    with vcol1:
-                        st.info("**Top 5 Jumlah Bantuan Paling Sering Diberikan**")
-                        top_bantuan = df_cluster['Jumlah Bantuan'].value_counts().nlargest(5)
-                        fig_bantuan = px.bar(top_bantuan, y=top_bantuan.index, x=top_bantuan.values, orientation='h', text_auto=True, labels={'y':'Jumlah Bantuan (Rp)', 'x':'Frekuensi'})
-                        fig_bantuan.update_layout(yaxis={'type': 'category', 'categoryorder':'total ascending'}, dragmode=False)
-                        st.plotly_chart(fig_bantuan, use_container_width=True)
-                        bantuan_dominan = f"Rp {top_bantuan.index[0]:,.0f}" if not top_bantuan.empty else "N/A"
-                        st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Nominal bantuan **{bantuan_dominan}** adalah yang paling sering diberikan untuk segmen ini.</div>", unsafe_allow_html=True)
+                    list_tahun_cluster = ["Semua Tahun"] + sorted(df_single['Tahun'].dropna().unique().astype(int), reverse=True)
+                    tahun_terpilih_cluster = st.selectbox("Pilih Tahun Analisis:", options=list_tahun_cluster, key="filter_tahun_cluster")
+                    
+                    selected_cluster_key = [k for k, v in info["nama_cluster"].items() if v == selected_cluster_nama][0]
+                    df_cluster_all_years = df_single[df_single['Cluster'] == selected_cluster_key].copy()
+                    
+                    df_cluster = df_cluster_all_years if tahun_terpilih_cluster == "Semua Tahun" else df_cluster_all_years[df_cluster_all_years['Tahun'] == tahun_terpilih_cluster]
 
-                        st.info("**Top 5 Kota Paling Dominan**")
-                        top_kota = df_cluster['Kota'].value_counts().nlargest(5)
-                        fig_kota = px.bar(top_kota, y=top_kota.index, x=top_kota.values, orientation='h', text_auto=True, labels={'y':'Kota', 'x':'Jumlah Penerima'})
-                        fig_kota.update_layout(yaxis={'categoryorder':'total ascending'}, dragmode=False)
-                        st.plotly_chart(fig_kota, use_container_width=True)
-                        kota_dominan = top_kota.index[0] if not top_kota.empty else "N/A"
-                        st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Wilayah **{kota_dominan}** menjadi basis utama untuk cluster ini.</div>", unsafe_allow_html=True)
-                    
-                    with vcol2:
-                        st.info("**Top 5 Durasi Tunggu Paling Sering**")
-                        top_durasi = df_cluster['Durasi Total'].value_counts().nlargest(5)
-                        fig_durasi = px.bar(top_durasi, y=top_durasi.index, x=top_durasi.values, orientation='h', text_auto=True, labels={'y':'Durasi Total (Hari)', 'x':'Frekuensi'})
-                        fig_durasi.update_layout(yaxis={'type': 'category', 'categoryorder':'total ascending'}, dragmode=False)
-                        st.plotly_chart(fig_durasi, use_container_width=True)
-                        durasi_dominan = top_durasi.index[0] if not top_durasi.empty else "N/A"
-                        st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Durasi proses yang paling umum untuk cluster ini adalah **{durasi_dominan} hari**.</div>", unsafe_allow_html=True)
+                    if df_cluster.empty:
+                        st.warning(f"Tidak ada data untuk cluster ini pada tahun {tahun_terpilih_cluster}.")
+                    else:
+                        st.markdown("**Ringkasan Statistik Cluster**")
+                        summary_df = generate_cluster_summary_df(df_cluster)
+                        st.table(summary_df)
                         
-                        st.info("**Top 5 Subprogram Paling Dominan**")
-                        top_sub = df_cluster['Kat. Subprogram'].value_counts().nlargest(5)
-                        fig_sub = px.bar(top_sub, y=top_sub.index, x=top_sub.values, orientation='h', text_auto=True, labels={'y':'', 'x':'Jumlah Penerima'})
-                        fig_sub.update_layout(yaxis={'categoryorder':'total ascending'}, dragmode=False)
-                        st.plotly_chart(fig_sub, use_container_width=True)
-                        sub_dominan = top_sub.index[0] if not top_sub.empty else "N/A"
-                        st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Aktivitas utama dalam cluster ini adalah **'{sub_dominan}'**.</div>", unsafe_allow_html=True)
-                    
-                    st.info("**Distribusi Sumber Anggaran**")
-                    sumber_anggaran = df_cluster['Sumber Anggaran'].value_counts()
-                    fig_pie = px.pie(sumber_anggaran, names=sumber_anggaran.index, values=sumber_anggaran.values, hole=0.5)
-                    fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-                    fig_pie.update_layout(dragmode=False)
-                    st.plotly_chart(fig_pie, use_container_width=True)
-                    sumber_dominan_pie = sumber_anggaran.index[0] if not sumber_anggaran.empty else "N/A"
-                    persen_dominan_pie = sumber_anggaran.iloc[0]/sumber_anggaran.sum() if not sumber_anggaran.empty else 0
-                    st.markdown(f"<div style='font-size:14px;'><b>Insight:</b> Sumber pendanaan untuk cluster ini didominasi oleh **{sumber_dominan_pie}** ({persen_dominan_pie:.1%}).</div>", unsafe_allow_html=True)
-                    
-                    st.markdown("---")
-                    st.subheader("Daftar Rinci Penerima Bantuan di Cluster Ini")
-                    st.write(f"Menampilkan data untuk **{selected_cluster_nama}** pada periode **{tahun_terpilih_cluster}**.")
-                    
-                    search_query_cluster = st.text_input("Cari di dalam cluster:", placeholder="Masukkan Nama Penerima atau KTP/SIM", key="search_cluster")
-                    
-                    df_table_cluster = df_cluster
-                    if search_query_cluster:
-                        df_table_cluster = df_cluster[
-                            df_cluster['Nama Penerima'].str.contains(search_query_cluster, case=False, na=False) |
-                            df_cluster['KTP/SIM'].astype(str).str.contains(search_query_cluster, case=False, na=False)
-                        ]
-                    st.dataframe(df_table_cluster.drop(columns=['Cluster'], errors='ignore'))
+                        st.markdown("---")
+                        st.markdown("**Visualisasi Detail Karakteristik Cluster**")
+                        vcol1, vcol2 = st.columns(2)
+                        with vcol1:
+                            st.info("**Top 5 Jumlah Bantuan Paling Sering Diberikan**")
+                            top_bantuan = df_cluster['Jumlah Bantuan'].value_counts().nlargest(5)
+                            st.bar_chart(top_bantuan)
+
+                            st.info("**Top 5 Kota Paling Dominan**")
+                            top_kota = df_cluster['Kota'].value_counts().nlargest(5)
+                            st.bar_chart(top_kota)
+
+                        with vcol2:
+                            st.info("**Top 5 Durasi Tunggu Paling Sering**")
+                            top_durasi = df_cluster['Durasi Total'].value_counts().nlargest(5)
+                            st.bar_chart(top_durasi)
+                            
+                            st.info("**Top 5 Subprogram Paling Dominan**")
+                            top_sub = df_cluster['Kat. Subprogram'].value_counts().nlargest(5)
+                            if not top_sub.empty:
+                                fig_v5 = px.bar(top_sub, y=top_sub.index, x=top_sub.values, orientation='h', text_auto=True, labels={'y':'Kategori Subprogram', 'x':'Jumlah Penerima'})
+                                fig_v5.update_layout(yaxis={'categoryorder':'total ascending'}, dragmode=False)
+                                st.plotly_chart(fig_v5, use_container_width=True)
+                            else:
+                                st.warning("Tidak ada data subprogram untuk ditampilkan pada filter ini.")
+
+                        st.info("**Distribusi Sumber Anggaran**")
+                        fig_pie = px.pie(df_cluster, names='Sumber Anggaran', hole=0.4)
+                        st.plotly_chart(fig_pie, use_container_width=True)
+                        
+                        st.markdown("---")
+                        st.markdown("**Daftar Rinci Penerima Bantuan di Cluster Ini**")
+                        
+                        search_query_cluster = st.text_input("Cari di dalam cluster:", placeholder="Masukkan nama atau NIK/No.KK", key="search_cluster")
+                        
+                        df_table_cluster = df_cluster
+                        if search_query_cluster:
+                            df_table_cluster = df_cluster[
+                                df_cluster['Nama Penerima'].str.contains(search_query_cluster, case=False, na=False) |
+                                df_cluster['KTP/SIM'].astype(str).str.contains(search_query_cluster, case=False, na=False)
+                            ]
+                        st.dataframe(df_table_cluster)
+
 else:
     st.info("👈 Silakan pilih program di sidebar untuk melihat detailnya.")
